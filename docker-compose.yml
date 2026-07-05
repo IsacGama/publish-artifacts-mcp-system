@@ -1,0 +1,21 @@
+services:
+  artifacts:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: "8787"
+      # In production these MUST be distinct hostnames you control, both
+      # pointed at this service (e.g. via a reverse proxy / DNS records).
+      CONTROL_BASE_URL: "https://api.example.com"
+      CONTENT_BASE_URL: "https://content.example.com"
+      DB_PATH: "/data/artifacts.db"
+      MAX_HTML_BYTES: "2097152"
+      PUBLISH_RATE_PER_MIN: "60"
+      DEFAULT_CSP_MODE: "strict"
+    volumes:
+      - artifacts-data:/data
+
+volumes:
+  artifacts-data:

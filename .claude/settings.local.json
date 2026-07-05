@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -p \"require\\('./node_modules/@modelcontextprotocol/sdk/package.json'\\).version\")",
+      "Bash(node -p \"require\\('./node_modules/hono/package.json'\\).version\")",
+      "Bash(node -p \"require\\('./node_modules/zod/package.json'\\).version\")",
+      "Bash(rtk ls *)",
+      "Bash(npm audit *)",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/server/mcp.js'\\).then\\(m=>console.log\\(Object.keys\\(m\\)\\)\\)\")",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/server/stdio.js'\\).then\\(m=>console.log\\(Object.keys\\(m\\)\\)\\)\")",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/server/streamableHttp.js'\\).then\\(m=>console.log\\(Object.keys\\(m\\)\\)\\)\")",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/inMemory.js'\\).then\\(m=>console.log\\(Object.keys\\(m\\)\\)\\)\")",
+      "Bash(rtk grep *)",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'\\).then\\(m=>console.log\\(Object.keys\\(m\\)\\)\\).catch\\(e=>console.log\\('NO:',e.message\\)\\)\")",
+      "Bash(rtk tsc *)",
+      "Bash(echo \"EXIT $?\")",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/client/index.js'\\).then\\(m=>console.log\\('client:',Object.keys\\(m\\)\\)\\)\")",
+      "Bash(node -e \"import\\('@modelcontextprotocol/sdk/inMemory.js'\\).then\\(m=>console.log\\('inMemory:',Object.keys\\(m\\)\\)\\)\")",
+      "Bash(rtk vitest *)",
+      "Bash(rtk proxy *)",
+      "Bash(export PORT=8799 CONTROL_BASE_URL=\"http://localhost:8799\" CONTENT_BASE_URL=\"http://content.localhost:8799\" DB_PATH=\"./data/e2e.db\")",
+      "Bash(rm -f ./data/e2e.db*)",
+      "Bash(node dist/cli/createKey.js \"e2e-test\")",
+      "Bash(tee /tmp/claude-1000/-home-isacgama-Documentos-My-projects-publish-artifacts-mcp-system/95564b1d-0795-4543-931f-156dfcf9b561/scratchpad/keyout.txt)",
+      "Bash(rm -f data/e2e.db data/e2e.db-wal data/e2e.db-shm data/guard.db data/guard.db-wal data/guard.db-shm)"
+    ]
+  }
+}
