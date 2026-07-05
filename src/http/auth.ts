@@ -11,12 +11,22 @@ export interface AuthEnv {
   };
 }
 
-/** Extracts a presented key from `Authorization: Bearer` or `X-API-Key`. */
+/**
+ * Extracts a presented key from `Authorization: Bearer`, `X-API-Key`, or an
+ * `api_key` query parameter.
+ *
+ * The query-param form exists for clients (e.g. claude.ai's custom-connector
+ * UI) that only let the user configure a single URL and don't support custom
+ * headers or a static-token field. Note this means the token can end up in
+ * server/proxy access logs wherever this form is used.
+ */
 export function extractKey(c: Context): string | null {
   const auth = c.req.header("authorization");
   if (auth && /^Bearer\s+/i.test(auth)) return auth.replace(/^Bearer\s+/i, "").trim();
   const x = c.req.header("x-api-key");
-  return x ? x.trim() : null;
+  if (x) return x.trim();
+  const q = c.req.query("api_key");
+  return q ? q.trim() : null;
 }
 
 /**
