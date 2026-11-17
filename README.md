@@ -113,9 +113,10 @@ SQLite persists in the `artifacts-data` volume (`/data`).
 npm test        # unit + MCP in-memory + HTTP host-isolation integration
 ```
 
-> The only `npm audit` findings are in the dev-only `vitest`/`vite`/`esbuild`
-> chain (not shipped to production). Left unpinned to avoid a breaking vitest v4
-> bump; revisit when upgrading the test tooling.
+Run `npm audit --omit=dev` separately from the application tests. The current
+lockfile has pre-existing production dependency advisories as well as development
+tooling findings; the auxiliary-file change does not upgrade those dependencies.
+See the rollout notes for the audited snapshot and follow-up.
 
 ## Publish a directory or a local design-system package
 
