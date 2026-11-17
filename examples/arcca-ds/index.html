@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" href="data:,">
+  <title>Arcca DS · Um pacote, muitas ideias</title>
+  <link rel="stylesheet" href="./assets/site.css">
+  <script type="module" src="./assets/demo.mjs"></script>
+</head>
+<body>
+  <main>
+    <header><a href="#inicio" class="brand">arcca <span>/ playground</span></a><span class="build">Build local · __DS_VERSION__</span></header>
+    <section class="intro" id="inicio">
+      <p class="eyebrow">DESIGN SYSTEM, FORA DO FRAMEWORK</p>
+      <h1>Um pacote.<br><span>Muitas ideias.</span></h1>
+      <p class="lede">Componentes Arcca em HTML puro. Explore cores, estados e interações usando a mesma base do nosso catálogo.</p>
+      <div class="chips"><arcca-tag color="primary">Sem npm publicado</arcca-tag><arcca-tag>Sem CDN</arcca-tag><arcca-tag>HTML + arquivos locais</arcca-tag></div>
+    </section>
+    <section class="playground" aria-labelledby="playground-title">
+      <div class="section-heading"><div><p class="eyebrow">EXPERIMENTE</p><h2 id="playground-title">Do arquivo à interação.</h2></div><arcca-tag color="success">DS carregado localmente</arcca-tag></div>
+      <div class="grid">
+        <article class="card"><span class="number">01 / AÇÕES</span><h3>Uma identidade. Vários estados.</h3><p>Troque a cor e experimente o botão. O evento vem do componente do DS.</p>
+          <arcca-dropdown id="color" label="Cor dos componentes"></arcca-dropdown>
+          <div class="button-row"><arcca-button id="action" color="primary">Experimentar botão</arcca-button><arcca-button id="reset" variant="secondary">Reiniciar</arcca-button></div>
+          <p id="clicks" class="result" role="status">Nenhum clique ainda.</p>
+        </article>
+        <article class="card"><span class="number">02 / FORMULÁRIOS</span><h3>Conteúdo que responde.</h3><p>Campos e seleções de verdade, com o runtime web extraído do pacote local.</p>
+          <arcca-text-field id="name" label="Como podemos te chamar?" placeholder="Seu nome"></arcca-text-field>
+          <div class="check-row"><arcca-checkbox id="notify" label="Receber novidades do DS"></arcca-checkbox></div>
+          <arcca-switch id="loading" label="Simular carregamento do botão"></arcca-switch>
+          <p id="greeting" class="result" role="status">Seu próximo protótipo começa aqui.</p>
+        </article>
+      </div>
+      <article class="card progress-card"><div><span class="number">03 / FEEDBACK</span><h3>Mais um passo para o seu protótipo.</h3><p>Cada clique no botão preenche um pouco desta barra.</p></div><div class="progress-area"><arcca-progress id="progress" value="0" max="5" color="primary"></arcca-progress><arcca-inline-message id="message" type="info">O Beacons publica o HTML, o DS e as fontes juntos.</arcca-inline-message></div></article>
+    </section>
+    <footer><p>Arcca DS experimental · pacote local __DS_VERSION__</p><p>Publicado no Beacons com arquivos auxiliares. Nenhuma dependência de CDN.</p></footer>
+  </main>
+</body>
+</html>

@@ -1,33 +1,44 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { buildCsp, contentSecurityHeaders } from "./csp.js";
 
 describe("buildCsp", () => {
   it("strict mode blocks network egress and framing", () => {
     const csp = buildCsp("strict");
-    expect(csp).toContain("default-src 'none'");
-    expect(csp).toContain("connect-src 'none'");
-    expect(csp).toContain("form-action 'none'");
-    expect(csp).toContain("frame-ancestors 'none'");
-    expect(csp).toContain("base-uri 'none'");
+    assert.ok(csp?.includes("default-src 'none'"));
+    assert.ok(csp?.includes("connect-src 'none'"));
+    assert.ok(csp?.includes("form-action 'none'"));
+    assert.ok(csp?.includes("frame-ancestors 'none'"));
+    assert.ok(csp?.includes("base-uri 'none'"));
     // still allows the artifact to render its own inline script/style
-    expect(csp).toContain("script-src 'unsafe-inline'");
+    assert.ok(csp?.includes("script-src 'unsafe-inline'"));
+  });
+
+  it("permits only the bundle directory for external scripts in strict mode", () => {
+    const csp = buildCsp("strict", "https://content.example.com/a/slug/");
+    const scripts = csp
+      .split("; ")
+      .find((part) => part.startsWith("script-src"))!;
+    assert.ok(scripts?.includes("https://content.example.com/a/slug/"));
+    assert.ok(!scripts?.includes("'self'"));
+    assert.ok(csp?.includes("connect-src 'none'"));
   });
 
   it("relaxed mode allows https network but still blocks forms", () => {
     const csp = buildCsp("relaxed");
-    expect(csp).toContain("connect-src https:");
-    expect(csp).toContain("form-action 'none'");
-    expect(csp).not.toContain("connect-src 'none'");
+    assert.ok(csp?.includes("connect-src https:"));
+    assert.ok(csp?.includes("form-action 'none'"));
+    assert.ok(!csp?.includes("connect-src 'none'"));
   });
 });
 
 describe("contentSecurityHeaders", () => {
   it("includes the full hardening header set", () => {
     const h = contentSecurityHeaders("strict");
-    expect(h["Content-Security-Policy"]).toBeTruthy();
-    expect(h["X-Content-Type-Options"]).toBe("nosniff");
-    expect(h["Referrer-Policy"]).toBe("no-referrer");
-    expect(h["X-Frame-Options"]).toBe("DENY");
-    expect(h["Permissions-Policy"]).toContain("geolocation=()");
+    assert.ok(h["Content-Security-Policy"]);
+    assert.strictEqual(h["X-Content-Type-Options"], "nosniff");
+    assert.strictEqual(h["Referrer-Policy"], "no-referrer");
+    assert.strictEqual(h["X-Frame-Options"], "DENY");
+    assert.ok(h["Permissions-Policy"]?.includes("geolocation=()"));
   });
 });

@@ -29,3 +29,14 @@ CREATE TABLE IF NOT EXISTS artifacts (
 );
 CREATE INDEX IF NOT EXISTS idx_artifacts_owner ON artifacts (owner_key_id, created_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_artifacts_slug ON artifacts (slug);
+
+-- Additive migration: existing single-HTML artifacts need no data rewrite.
+CREATE TABLE IF NOT EXISTS artifact_files (
+  artifact_id TEXT NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+  path TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  sha256 TEXT NOT NULL,
+  data BLOB NOT NULL,
+  PRIMARY KEY (artifact_id, path)
+);

@@ -1,3 +1,4 @@
+import { fileSchema, InvalidFileError } from "../core/files.js";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { DB } from "../db/index.js";
@@ -20,6 +21,7 @@ const cspMode = z.enum(["strict", "relaxed"]);
 
 const publishSchema = z.object({
   html: z.string().min(1),
+  files: z.array(fileSchema).optional(),
   title: z.string().optional(),
   description: z.string().optional(),
   visibility: visibility.optional(),
@@ -50,20 +52,33 @@ export function adminRouter(db: DB, cfg: AppConfig): Hono<AuthEnv> {
     const res = listArtifacts(ctx, ctx.ownerKeyId, {
       limit: q.limit ? Number(q.limit) : undefined,
       offset: q.offset ? Number(q.offset) : undefined,
-      visibility: q.visibility === "public" || q.visibility === "unlisted" ? q.visibility : undefined,
+      visibility:
+        q.visibility === "public" || q.visibility === "unlisted"
+          ? q.visibility
+          : undefined,
     });
     return c.json(res);
   });
 
   api.post("/artifacts", async (c) => {
     const ctx = c.get("toolCtx");
-    if (!limiter.take(ctx.ownerKeyId)) return c.json({ error: "rate_limited" }, 429);
-    const parsed = publishSchema.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: "invalid_body", details: parsed.error.issues }, 400);
+    if (!limiter.take(ctx.ownerKeyId))
+      return c.json({ error: "rate_limited" }, 429);
+    const parsed = publishSchema.safeParse(
+      await c.req.json().catch(() => null),
+    );
+    if (!parsed.success)
+      return c.json(
+        { error: "invalid_body", details: parsed.error.issues },
+        400,
+      );
     try {
       return c.json(publishArtifact(ctx, ctx.ownerKeyId, parsed.data), 201);
     } catch (err) {
-      if (err instanceof PayloadTooLargeError) return c.json({ error: "payload_too_large" }, 413);
+      if (err instanceof InvalidFileError)
+        return c.json({ error: "invalid_files", message: err.message }, 400);
+      if (err instanceof PayloadTooLargeError)
+        return c.json({ error: "payload_too_large" }, 413);
       throw err;
     }
   });
@@ -72,23 +87,37 @@ export function adminRouter(db: DB, cfg: AppConfig): Hono<AuthEnv> {
     const ctx = c.get("toolCtx");
     try {
       const includeHtml = c.req.query("include_html") === "true";
-      return c.json(getArtifact(ctx, ctx.ownerKeyId, c.req.param("id"), includeHtml));
+      return c.json(
+        getArtifact(ctx, ctx.ownerKeyId, c.req.param("id"), includeHtml),
+      );
     } catch (err) {
-      if (err instanceof NotFoundError) return c.json({ error: "not_found" }, 404);
+      if (err instanceof NotFoundError)
+        return c.json({ error: "not_found" }, 404);
       throw err;
     }
   });
 
   api.patch("/artifacts/:id", async (c) => {
     const ctx = c.get("toolCtx");
-    if (!limiter.take(ctx.ownerKeyId)) return c.json({ error: "rate_limited" }, 429);
+    if (!limiter.take(ctx.ownerKeyId))
+      return c.json({ error: "rate_limited" }, 429);
     const parsed = updateSchema.safeParse(await c.req.json().catch(() => null));
-    if (!parsed.success) return c.json({ error: "invalid_body", details: parsed.error.issues }, 400);
+    if (!parsed.success)
+      return c.json(
+        { error: "invalid_body", details: parsed.error.issues },
+        400,
+      );
     try {
-      return c.json(updateArtifact(ctx, ctx.ownerKeyId, c.req.param("id"), parsed.data));
+      return c.json(
+        updateArtifact(ctx, ctx.ownerKeyId, c.req.param("id"), parsed.data),
+      );
     } catch (err) {
-      if (err instanceof NotFoundError) return c.json({ error: "not_found" }, 404);
-      if (err instanceof PayloadTooLargeError) return c.json({ error: "payload_too_large" }, 413);
+      if (err instanceof NotFoundError)
+        return c.json({ error: "not_found" }, 404);
+      if (err instanceof InvalidFileError)
+        return c.json({ error: "invalid_files", message: err.message }, 400);
+      if (err instanceof PayloadTooLargeError)
+        return c.json({ error: "payload_too_large" }, 413);
       throw err;
     }
   });
@@ -104,10 +133,20 @@ export function adminRouter(db: DB, cfg: AppConfig): Hono<AuthEnv> {
     const ctx = c.get("toolCtx");
     const body = (await c.req.json().catch(() => ({}))) as { rotate?: boolean };
     try {
-      const meta = getShareLink(ctx, ctx.ownerKeyId, c.req.param("id"), body.rotate ?? false);
-      return c.json({ id: meta.id, slug: meta.slug, share_url: meta.share_url });
+      const meta = getShareLink(
+        ctx,
+        ctx.ownerKeyId,
+        c.req.param("id"),
+        body.rotate ?? false,
+      );
+      return c.json({
+        id: meta.id,
+        slug: meta.slug,
+        share_url: meta.share_url,
+      });
     } catch (err) {
-      if (err instanceof NotFoundError) return c.json({ error: "not_found" }, 404);
+      if (err instanceof NotFoundError)
+        return c.json({ error: "not_found" }, 404);
       throw err;
     }
   });
