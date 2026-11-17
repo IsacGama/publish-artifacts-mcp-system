@@ -33,4 +33,4 @@ The previous image tag `docker.io/library/publish-artifacts-mcp:latest` was pres
 
 `npm audit --omit=dev` on the inherited lockfile reported 10 production findings (3 moderate, 5 high, 2 critical), including Hono, the MCP SDK, DOMPurify and Zod. This change did not alter dependency versions. Updating the runtime and validation dependencies is separate follow-up work; the README's previous claim that findings were development-only was corrected. Application tests are not a substitute for a clean dependency audit.
 
-These production advisories were subsequently resolved by [security update 0.2.1](security-0.2.1.md); see that report for the remaining development-only Picomatch advisory.
+These production advisories were subsequently resolved by [security update 0.2.1](security-0.2.1.md); the full development audit is also clean after removing the unnecessary Vitest dependency.

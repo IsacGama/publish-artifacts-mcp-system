@@ -14,35 +14,30 @@
 | fast-uri | 3.1.3 | 3.1.9 |
 | ip-address | 10.2.0 | 10.7.6 |
 | qs | 6.15.3 | 6.17.1 |
-| Vitest (dev) | 2.1.9 | 5.1.0 |
-| Vite (dev) | 5.4.21 | 8.3.8 |
+| Vitest (dev) | 2.1.9 | Removed; native Node runner |
+| Vite (dev) | 5.4.21 | Removed |
 
 The two critical production findings (DOMPurify and proxy-addr) are gone.
 The critical Vitest/tinypool development findings are gone too; tinypool is no
 longer in the resolved tree. No `--force`, audit suppression or fabricated overrides
 were used. Lockfile regeneration followed by a clean `npm ci` validates resolution.
 
-## Remaining development-only advisory
+## Complete audit, including development dependencies
 
-`npm audit --omit=dev --json`: **0** findings in every severity.
-Full `npm audit --json`: **5 high**, **0 critical**, all from the same Picomatch
-ReDoS advisory propagated through fdir, tinyglobby, Vite and Vitest.
+Both `npm audit --json` and `npm audit --omit=dev --json` report **zero** findings
+at this snapshot: no low, moderate, high or critical alerts.
 
-- [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
-- The registry's latest Picomatch is 4.0.7; the advisory affects <=4.0.7 and lists
-  no patched release at this snapshot.
-- Vitest 5.1.0 uses that current release. npm's proposed Vitest downgrade to 3.1.4
-  is not an acceptable substitute for a patch: it would reintroduce older tooling
-  with other advisories.
-- These tools process repository-owned test patterns and are removed with
-  `npm prune --omit=dev` from the runtime image. The application does not use
-  Picomatch to process artifact content or file paths.
-- Follow-up: upgrade Picomatch when a patched compatible version is published,
-  rerun the full audit and suite. This residual issue is disclosed, not marked fixed.
+The test suite only needs ordinary assertions and lifecycle hooks. It now uses
+`node:test` and `node:assert/strict` with the already-present `tsx` loader, retaining
+all 46 scenarios and replacing assertions directly rather than introducing an adapter.
+Removing Vitest also removes Vite, fdir, tinyglobby and Picomatch. This eliminates the
+unpatched [Picomatch advisory](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
+without downgrading to vulnerable test tooling, suppressing audits or maintaining a fork.
+No automated test was skipped or removed.
 
 ## Compatibility and validation
 
-- Node minimum raised to 22.12.0 for the new test tooling; deployment remains Node 22.
+- Node 22 compatibility is retained; tests run with `node --import tsx --test`.
 - The new SDK defaults to a 4 MiB HTTP body limit. Its explicit bound now uses the
   same configured, finite raw-body limit as Hono, preserving local bundle uploads.
 - New HTTP MCP tests cover publication above 4 MiB, configured rejection above the

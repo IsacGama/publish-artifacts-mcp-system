@@ -1,4 +1,5 @@
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { createApp } from "./app.js";
 import { memDb, seedKey, testConfig } from "../test-helpers.js";
 import type { DB } from "../db/index.js";
@@ -35,12 +36,12 @@ describe("MCP HTTP security upgrade compatibility", () => {
       html: "<p>bundle</p>",
       files: [{ path: "app.js", content: "x".repeat(4 * 1024 * 1024 + 128) }],
     });
-    expect(response.status).toBe(200);
+    assert.strictEqual(response.status, 200);
     const result = await response.json();
-    expect(result.error).toBeUndefined();
-    expect(result.result.isError).not.toBe(true);
+    assert.strictEqual(result.error, undefined);
+    assert.notStrictEqual(result.result.isError, true);
     const artifact = result.result.structuredContent;
-    expect(artifact.files[0].size).toBe(4 * 1024 * 1024 + 128);
+    assert.strictEqual(artifact.files[0].size, 4 * 1024 * 1024 + 128);
   });
 
   it("still rejects requests beyond the configured body limit", async () => {
@@ -49,21 +50,30 @@ describe("MCP HTTP security upgrade compatibility", () => {
       html: "<p>too large</p>",
       files: [{ path: "app.js", content: "x".repeat(1100000) }],
     });
-    expect(response.status).toBe(413);
-    expect(db.prepare("select count(*) as n from artifacts").get()).toEqual({
-      n: 0,
-    });
+    assert.strictEqual(response.status, 413);
+    assert.deepStrictEqual(
+      db.prepare("select count(*) as n from artifacts").get(),
+      {
+        n: 0,
+      },
+    );
   });
 
   it("retains authentication and validates malformed tool arguments with Zod 4", async () => {
     const { call, db } = setup();
-    expect((await call({ html: "<p>no</p>" }, "invalid")).status).toBe(401);
+    assert.strictEqual(
+      (await call({ html: "<p>no</p>" }, "invalid")).status,
+      401,
+    );
     const res = await call({ html: 42 });
-    expect(res.status).toBe(200);
+    assert.strictEqual(res.status, 200);
     const body = await res.json();
-    expect(Boolean(body.error || body.result?.isError)).toBe(true);
-    expect(db.prepare("select count(*) as n from artifacts").get()).toEqual({
-      n: 0,
-    });
+    assert.strictEqual(Boolean(body.error || body.result?.isError), true);
+    assert.deepStrictEqual(
+      db.prepare("select count(*) as n from artifacts").get(),
+      {
+        n: 0,
+      },
+    );
   });
 });

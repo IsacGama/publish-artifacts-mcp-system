@@ -1,4 +1,5 @@
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { createApp } from "./app.js";
 import { memDb, testConfig, seedKey } from "../test-helpers.js";
 import type { DB } from "../db/index.js";
@@ -41,72 +42,90 @@ describe("artifact file publication", () => {
       html: '<script type="module" src="./assets/app.mjs"></script>',
       files,
     });
-    expect(published.status).toBe(201);
+    assert.strictEqual(published.status, 201);
     const a = await published.json();
-    expect(a.files).toHaveLength(4);
-    expect(a.files[0].sha256).toHaveLength(64);
+    assert.strictEqual(a.files.length, 4);
+    assert.strictEqual(a.files[0].sha256.length, 64);
     const redirect = await app.request(a.share_url);
-    expect(redirect.status).toBe(302);
-    expect(redirect.headers.get("location")).toBe(`/a/${a.slug}/`);
+    assert.strictEqual(redirect.status, 302);
+    assert.strictEqual(redirect.headers.get("location"), `/a/${a.slug}/`);
     const page = await app.request(a.share_url + "/");
     const csp = page.headers.get("content-security-policy")!;
-    expect(csp).toContain(`http://content.localhost:8787/a/${a.slug}/`);
-    expect(csp).toContain("connect-src 'none'");
+    assert.ok(csp?.includes(`http://content.localhost:8787/a/${a.slug}/`));
+    assert.ok(csp?.includes("connect-src 'none'"));
     for (const file of files) {
       const res = await app.request(`${a.share_url}/${file.path}`);
-      expect(res.status).toBe(200);
-      expect(res.headers.get("cache-control")).toBe("no-store");
-      expect(res.headers.get("x-content-type-options")).toBe("nosniff");
-      expect(Buffer.from(await res.arrayBuffer())).toEqual(
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.headers.get("cache-control"), "no-store");
+      assert.strictEqual(res.headers.get("x-content-type-options"), "nosniff");
+      assert.deepStrictEqual(
+        Buffer.from(await res.arrayBuffer()),
         Buffer.from(
           file.content,
           file.encoding === "base64" ? "base64" : "utf8",
         ),
       );
-      expect((await app.request(`${C}/a/${a.slug}/${file.path}`)).status).toBe(
+      assert.strictEqual(
+        (await app.request(`${C}/a/${a.slug}/${file.path}`)).status,
         404,
       );
     }
-    expect(
-      (await app.request(`${a.share_url}/assets/app.mjs`)).headers.get(
-        "content-type",
-      ),
-    ).toContain("text/javascript");
-    expect(
+    assert.ok(
+      (await app.request(`${a.share_url}/assets/app.mjs`)).headers
+        .get("content-type")
+        ?.includes("text/javascript"),
+    );
+    assert.strictEqual(
       (await app.request(`${a.share_url}/assets/font.woff2`)).headers.get(
         "content-type",
       ),
-    ).toBe("font/woff2");
-    expect((await app.request(`${a.share_url}/missing.js`)).status).toBe(404);
-    expect((await api(`/${a.id}`)).status).toBe(200);
+      "font/woff2",
+    );
+    assert.strictEqual(
+      (await app.request(`${a.share_url}/missing.js`)).status,
+      404,
+    );
+    assert.strictEqual((await api(`/${a.id}`)).status, 200);
   });
 
   it("preserves files on HTML updates, replaces atomically and clears explicitly", async () => {
     const { api, app } = setup();
     const a = await (await api("", "POST", { html: "old", files })).json();
     await api(`/${a.id}`, "PATCH", { html: "new" });
-    expect((await app.request(a.share_url + "/assets/app.mjs")).status).toBe(
+    assert.strictEqual(
+      (await app.request(a.share_url + "/assets/app.mjs")).status,
       200,
     );
-    expect(
+    assert.strictEqual(
       (
         await api(`/${a.id}`, "PATCH", {
           html: "bad",
           files: [{ path: "../bad.js", content: "bad" }],
         })
       ).status,
-    ).toBe(400);
-    expect(await (await app.request(a.share_url + "/")).text()).toBe("new");
+      400,
+    );
+    assert.strictEqual(
+      await (await app.request(a.share_url + "/")).text(),
+      "new",
+    );
     await api(`/${a.id}`, "PATCH", {
       files: [{ path: "only.css", content: "p{}" }],
     });
-    expect((await app.request(a.share_url + "/assets/app.mjs")).status).toBe(
+    assert.strictEqual(
+      (await app.request(a.share_url + "/assets/app.mjs")).status,
       404,
     );
-    expect((await app.request(a.share_url + "/only.css")).status).toBe(200);
+    assert.strictEqual(
+      (await app.request(a.share_url + "/only.css")).status,
+      200,
+    );
     await api(`/${a.id}`, "PATCH", { files: [] });
-    expect((await app.request(a.share_url)).status).toBe(200);
-    expect((await app.request(a.share_url + "/only.css")).status).toBe(404);
+    assert.strictEqual((await app.request(a.share_url)).status, 200);
+    assert.strictEqual(
+      (await app.request(a.share_url + "/only.css")).status,
+      404,
+    );
   });
 
   it("revokes file URLs with rotation, expiry and deletion and prevents cross-owner writes", async () => {
@@ -121,24 +140,28 @@ describe("artifact file publication", () => {
       },
       body: JSON.stringify({ files: [] }),
     });
-    expect(forbidden.status).toBe(404);
+    assert.strictEqual(forbidden.status, 404);
     const rotated = await (
       await api(`/${a.id}/share`, "POST", { rotate: true })
     ).json();
-    expect((await app.request(a.share_url + "/assets/app.mjs")).status).toBe(
+    assert.strictEqual(
+      (await app.request(a.share_url + "/assets/app.mjs")).status,
       404,
     );
-    expect(
+    assert.strictEqual(
       (await app.request(rotated.share_url + "/assets/app.mjs")).status,
-    ).toBe(200);
+      200,
+    );
     await api(`/${a.id}`, "PATCH", { expires_at: "2000-01-01T00:00:00.000Z" });
-    expect(
+    assert.strictEqual(
       (await app.request(rotated.share_url + "/assets/app.mjs")).status,
-    ).toBe(404);
+      404,
+    );
     await api(`/${a.id}`, "DELETE");
-    expect(
+    assert.deepStrictEqual(
       db.prepare("SELECT count(*) AS n FROM artifact_files").get(),
-    ).toEqual({ n: 0 });
+      { n: 0 },
+    );
   });
 
   it("rejects unsafe paths, active documents, invalid encoding, duplicate names and limits", async () => {
@@ -158,40 +181,48 @@ describe("artifact file publication", () => {
       "foo.html",
       "x.constructor",
     ]) {
-      expect(
+      assert.strictEqual(
         (await api("", "POST", { html: "x", files: [{ path, content: "x" }] }))
           .status,
-      ).toBe(400);
+        400,
+      );
     }
-    expect(
+    assert.strictEqual(
       (
         await api("", "POST", {
           html: "x",
           files: [{ path: "x.js", content: "???", encoding: "base64" }],
         })
       ).status,
-    ).toBe(400);
-    expect(
+      400,
+    );
+    assert.strictEqual(
       (await api("", "POST", { html: "x", files: [files[0], files[0]] }))
         .status,
-    ).toBe(400);
-    expect((await api("", "POST", { html: "x", files })).status).toBe(400);
-    expect(
+      400,
+    );
+    assert.strictEqual(
+      (await api("", "POST", { html: "x", files })).status,
+      400,
+    );
+    assert.strictEqual(
       (
         await api("", "POST", {
           html: "x",
           files: [{ path: "x.js", content: "x".repeat(33) }],
         })
       ).status,
-    ).toBe(413);
-    expect(
+      413,
+    );
+    assert.strictEqual(
       (
         await api("", "POST", {
           html: "x".repeat(20),
           files: [{ path: "x.js", content: "x".repeat(21) }],
         })
       ).status,
-    ).toBe(413);
+      413,
+    );
   });
 
   it("retains the single-HTML contract, including sanitize", async () => {
@@ -203,25 +234,38 @@ describe("artifact file publication", () => {
       })
     ).json();
     const page = await app.request(a.share_url);
-    expect(page.status).toBe(200);
+    assert.strictEqual(page.status, 200);
     const html = await page.text();
-    expect(html).toContain("<p>safe</p>");
-    expect(html).not.toContain("<script>");
-    expect(page.headers.get("content-security-policy")).not.toContain(
-      `/a/${a.slug}/`,
+    assert.ok(html?.includes("<p>safe</p>"));
+    assert.ok(!html?.includes("<script>"));
+    assert.ok(
+      !page.headers.get("content-security-policy")?.includes(`/a/${a.slug}/`),
     );
   });
   it("bounds raw HTTP bodies before parsing, even without Content-Length", async () => {
     const { app } = setup({ maxHtmlBytes: 10, maxBundleBytes: 20 });
-    const res = await app.request(`${C}/api/artifacts`, { method: "POST", body: "x".repeat(1100000) });
-    expect(res.status).toBe(413);
+    const res = await app.request(`${C}/api/artifacts`, {
+      method: "POST",
+      body: "x".repeat(1100000),
+    });
+    assert.strictEqual(res.status, 413);
   });
 
   it("checks bundle size when replacing only HTML and preserves the prior revision", async () => {
     const { api, app } = setup({ maxBundleBytes: 20 });
-    const a = await (await api("", "POST", { html: "a", files: [{ path: "a.js", content: "x".repeat(15) }] })).json();
-    expect((await api(`/${a.id}`, "PATCH", { html: "123456" })).status).toBe(413);
-    expect(await (await app.request(a.share_url + "/")).text()).toBe("a");
+    const a = await (
+      await api("", "POST", {
+        html: "a",
+        files: [{ path: "a.js", content: "x".repeat(15) }],
+      })
+    ).json();
+    assert.strictEqual(
+      (await api(`/${a.id}`, "PATCH", { html: "123456" })).status,
+      413,
+    );
+    assert.strictEqual(
+      await (await app.request(a.share_url + "/")).text(),
+      "a",
+    );
   });
-
 });

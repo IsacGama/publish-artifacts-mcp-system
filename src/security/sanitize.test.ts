@@ -1,38 +1,44 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 import { sanitizeStrict } from "./sanitize.js";
 
 describe("sanitized artifacts", () => {
-  it.each([
+  for (const html of [
     "<h1>Safe</h1><script>alert(1)</script>",
     '<img src=x onerror="alert(1)"><button onclick="alert(1)">Safe</button>',
     '<a href="javascript:alert(1)">Safe</a><input onfocus="alert(1)">',
     '<svg onload="alert(1)"><a href="javascript:alert(1)">Safe</a></svg>',
     '<iframe srcdoc="<script>alert(1)</script>"></iframe><p>Safe</p>',
-  ])("removes executable markup after parsing: %s", (html) => {
-    const result = sanitizeStrict(html);
-    const dom = new JSDOM(result);
-    try {
-      const document = dom.window.document;
-      expect(document.querySelector("script,iframe,object,embed")).toBeNull();
-      for (const element of document.querySelectorAll("*")) {
-        for (const attribute of element.attributes) {
-          expect(attribute.name).not.toMatch(/^on/i);
-          if (
-            ["href", "src", "xlink:href", "action", "formaction"].includes(
-              attribute.name,
+  ])
+    it(`removes executable markup after parsing: ${html}`, () => {
+      const result = sanitizeStrict(html);
+      const dom = new JSDOM(result);
+      try {
+        const document = dom.window.document;
+        assert.strictEqual(
+          document.querySelector("script,iframe,object,embed"),
+          null,
+        );
+        for (const element of document.querySelectorAll("*")) {
+          for (const attribute of element.attributes) {
+            assert.doesNotMatch(attribute.name, /^on/i);
+            if (
+              ["href", "src", "xlink:href", "action", "formaction"].includes(
+                attribute.name,
+              )
             )
-          )
-            expect(
-              attribute.value.replace(/[\s\u0000-\u001f]/g, ""),
-            ).not.toMatch(/^(javascript|vbscript):/i);
+              assert.doesNotMatch(
+                attribute.value.replace(/[\s\u0000-\u001f]/g, ""),
+                /^(javascript|vbscript):/i,
+              );
+          }
         }
+        assert.ok(document.body.textContent?.includes("Safe"));
+      } finally {
+        dom.window.close();
       }
-      expect(document.body.textContent).toContain("Safe");
-    } finally {
-      dom.window.close();
-    }
-  });
+    });
 
   it("preserves document structure, readable content and safe links", () => {
     const result = sanitizeStrict(
@@ -40,9 +46,10 @@ describe("sanitized artifacts", () => {
     );
     const dom = new JSDOM(result);
     try {
-      expect(dom.window.document.title).toBe("Report");
-      expect(dom.window.document.documentElement.lang).toBe("pt-BR");
-      expect(dom.window.document.querySelector("a")?.href).toBe(
+      assert.strictEqual(dom.window.document.title, "Report");
+      assert.strictEqual(dom.window.document.documentElement.lang, "pt-BR");
+      assert.strictEqual(
+        dom.window.document.querySelector("a")?.href,
         "https://example.com/",
       );
     } finally {

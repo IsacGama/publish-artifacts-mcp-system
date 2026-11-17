@@ -1,4 +1,5 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { memDb } from "../test-helpers.js";
 import { createApiKey, authenticate, revokeApiKey } from "./apiKeys.js";
 
@@ -7,33 +8,38 @@ describe("api keys", () => {
     const db = memDb();
     const key = createApiKey(db, "laptop");
     const owner = authenticate(db, key.plaintext);
-    expect(owner?.id).toBe(key.id);
-    expect(owner?.label).toBe("laptop");
+    assert.strictEqual(owner?.id, key.id);
+    assert.strictEqual(owner?.label, "laptop");
   });
 
   it("rejects unknown and malformed keys", () => {
     const db = memDb();
     createApiKey(db, "a");
-    expect(authenticate(db, "ak_00000000.0000000000000000000000000000000000000000")).toBeNull();
-    expect(authenticate(db, "garbage")).toBeNull();
+    assert.strictEqual(
+      authenticate(db, "ak_00000000.0000000000000000000000000000000000000000"),
+      null,
+    );
+    assert.strictEqual(authenticate(db, "garbage"), null);
   });
 
   it("rejects revoked keys", () => {
     const db = memDb();
     const key = createApiKey(db, "temp");
-    expect(revokeApiKey(db, key.id)).toBe(true);
-    expect(authenticate(db, key.plaintext)).toBeNull();
+    assert.strictEqual(revokeApiKey(db, key.id), true);
+    assert.strictEqual(authenticate(db, key.plaintext), null);
     // second revoke is a no-op
-    expect(revokeApiKey(db, key.id)).toBe(false);
+    assert.strictEqual(revokeApiKey(db, key.id), false);
   });
 
   it("does not store the plaintext secret", () => {
     const db = memDb();
     const key = createApiKey(db, "x");
-    const row = db.prepare("SELECT * FROM api_keys WHERE id = ?").get(key.id) as {
+    const row = db
+      .prepare("SELECT * FROM api_keys WHERE id = ?")
+      .get(key.id) as {
       key_hash: string;
     };
-    expect(row.key_hash).not.toContain(key.plaintext);
-    expect(key.plaintext).not.toContain(row.key_hash);
+    assert.ok(!row.key_hash?.includes(key.plaintext));
+    assert.ok(!key.plaintext?.includes(row.key_hash));
   });
 });
