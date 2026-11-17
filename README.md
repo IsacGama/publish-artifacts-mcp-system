@@ -9,7 +9,7 @@ isolation + strict CSP + scoped API keys**.
 
 ## Stack
 
-TypeScript · Node 22 · [Hono](https://hono.dev) · `@modelcontextprotocol/sdk`
+TypeScript · Node 22.12+ · [Hono](https://hono.dev) · `@modelcontextprotocol/sdk`
 · SQLite (`better-sqlite3`, WAL) · zod. Deploy via Docker.
 
 ## How it works
@@ -113,10 +113,11 @@ SQLite persists in the `artifacts-data` volume (`/data`).
 npm test        # unit + MCP in-memory + HTTP host-isolation integration
 ```
 
-Run `npm audit --omit=dev` separately from the application tests. The current
-lockfile has pre-existing production dependency advisories as well as development
-tooling findings; the auxiliary-file change does not upgrade those dependencies.
-See the rollout notes for the audited snapshot and follow-up.
+Run `npm audit --omit=dev` separately from the application tests. Version 0.2.1
+has no production dependency advisories in the 2026-11-17 audit. The full developer
+tree retains five high-severity findings derived from one unpatched Picomatch
+advisory; it is excluded from the runtime image. See
+[security validation](docs/security-0.2.1.md) for versions, evidence and the residual issue.
 
 ## Publish a directory or a local design-system package
 

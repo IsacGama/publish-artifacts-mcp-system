@@ -1,7 +1,7 @@
 import { bodyLimit } from "hono/body-limit";
 import { Hono } from "hono";
 import type { DB } from "../db/index.js";
-import type { AppConfig } from "../config.js";
+import { requestBodyLimit, type AppConfig } from "../config.js";
 import { contentRouter } from "./content.js";
 import { adminRouter } from "./admin.js";
 import { mcpHttpRouter } from "./mcpHttp.js";
@@ -23,10 +23,7 @@ export function createApp(db: DB, cfg: AppConfig): Hono {
   app.use(
     "*",
     bodyLimit({
-      maxSize:
-        Math.ceil(((cfg.maxBundleBytes ?? 20 * 1024 * 1024) * 4) / 3) +
-        cfg.maxHtmlBytes +
-        1024 * 1024,
+      maxSize: requestBodyLimit(cfg),
       onError: (c) => c.json({ error: "payload_too_large" }, 413),
     }),
   );

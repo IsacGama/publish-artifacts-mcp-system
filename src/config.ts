@@ -120,3 +120,14 @@ export function loadConfig(): AppConfig {
 export function resetConfigForTests(): void {
   cached = null;
 }
+
+/** Shared bound for raw JSON (including base64), enforced by HTTP and MCP. */
+export function requestBodyLimit(
+  cfg: Pick<AppConfig, "maxBundleBytes" | "maxHtmlBytes">,
+): number {
+  return (
+    Math.ceil(((cfg.maxBundleBytes ?? 20 * 1024 * 1024) * 4) / 3) +
+    cfg.maxHtmlBytes +
+    1024 * 1024
+  );
+}

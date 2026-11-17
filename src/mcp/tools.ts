@@ -53,7 +53,7 @@ async function guard<T>(fn: () => T | Promise<T>) {
 export function buildMcpServer(ctx: ToolContext): McpServer {
   const server = new McpServer({
     name: "publish-artifacts-mcp",
-    version: "0.2.0",
+    version: "0.2.1",
   });
 
   server.registerTool(

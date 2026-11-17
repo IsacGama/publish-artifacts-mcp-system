@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { DB } from "../db/index.js";
-import type { AppConfig } from "../config.js";
+import { requestBodyLimit, type AppConfig } from "../config.js";
 import { apiKeyAuth, type AuthEnv } from "./auth.js";
 import { buildMcpServer } from "../mcp/tools.js";
 
@@ -23,6 +23,8 @@ export function mcpHttpRouter(db: DB, cfg: AppConfig): Hono<AuthEnv> {
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined, // stateless
       enableJsonResponse: true,
+      // SDK 1.32 caps bodies at 4 MiB by default; keep our bounded bundle contract.
+      maxRequestBodySize: requestBodyLimit(cfg),
     });
     await server.connect(transport);
     return transport.handleRequest(c.req.raw);
