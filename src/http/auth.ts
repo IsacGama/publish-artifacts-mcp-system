@@ -22,7 +22,8 @@ export interface AuthEnv {
  */
 export function extractKey(c: Context): string | null {
   const auth = c.req.header("authorization");
-  if (auth && /^Bearer\s+/i.test(auth)) return auth.replace(/^Bearer\s+/i, "").trim();
+  if (auth && /^Bearer\s+/i.test(auth))
+    return auth.replace(/^Bearer\s+/i, "").trim();
   const x = c.req.header("x-api-key");
   if (x) return x.trim();
   const q = c.req.query("api_key");
@@ -46,6 +47,9 @@ export function apiKeyAuth(db: DB, cfg: AppConfig) {
       db,
       contentBaseUrl: cfg.contentBaseUrl,
       maxHtmlBytes: cfg.maxHtmlBytes,
+      maxFileBytes: cfg.maxFileBytes,
+      maxBundleBytes: cfg.maxBundleBytes,
+      maxFiles: cfg.maxFiles,
       defaultCspMode: cfg.defaultCspMode,
       ownerKeyId: owner.id,
     });

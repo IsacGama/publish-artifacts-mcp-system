@@ -36,6 +36,7 @@ export interface ArtifactMeta {
   created_at: string;
   updated_at: string;
   share_url: string;
+  files?: import("./files.js").FileMeta[];
 }
 
 export function toMeta(row: ArtifactRow, contentBaseUrl: string): ArtifactMeta {

@@ -18,12 +18,14 @@ import type { CspMode } from "../config.js";
  * access; it widens connect/img/frame to https: but still blocks form-action
  * and keeps default-src closed.
  */
-export function buildCsp(mode: CspMode): string {
+export function buildCsp(mode: CspMode, fileSource?: string): string {
+  // Only this artifact's directory; never allow all scripts on the shared origin.
+  const files = fileSource ? ` ${fileSource}` : "";
   if (mode === "relaxed") {
     return [
       "default-src 'none'",
-      "script-src 'unsafe-inline' 'unsafe-eval' https:",
-      "style-src 'unsafe-inline' https:",
+      `script-src 'unsafe-inline' 'unsafe-eval' https:${files}`,
+      `style-src 'unsafe-inline' https:${files}`,
       "img-src 'self' data: blob: https:",
       "font-src 'self' data: https:",
       "media-src 'self' data: blob: https:",
@@ -38,10 +40,10 @@ export function buildCsp(mode: CspMode): string {
   // strict (default)
   return [
     "default-src 'none'",
-    "script-src 'unsafe-inline' 'unsafe-eval'",
-    "style-src 'unsafe-inline'",
+    `script-src 'unsafe-inline' 'unsafe-eval'${files}`,
+    `style-src 'unsafe-inline'${files}`,
     "img-src 'self' data: blob:",
-    "font-src 'self' data:",
+    `font-src 'self' data:${files}`,
     "media-src 'self' data: blob:",
     "connect-src 'none'",
     "form-action 'none'",
@@ -51,9 +53,12 @@ export function buildCsp(mode: CspMode): string {
 }
 
 /** Hardening headers set alongside CSP on every served artifact response. */
-export function contentSecurityHeaders(mode: CspMode): Record<string, string> {
+export function contentSecurityHeaders(
+  mode: CspMode,
+  fileSource?: string,
+): Record<string, string> {
   return {
-    "Content-Security-Policy": buildCsp(mode),
+    "Content-Security-Policy": buildCsp(mode, fileSource),
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Cross-Origin-Resource-Policy": "same-origin",

@@ -35,6 +35,9 @@ async function main() {
     db,
     contentBaseUrl: cfg.contentBaseUrl,
     maxHtmlBytes: cfg.maxHtmlBytes,
+    maxFileBytes: cfg.maxFileBytes,
+    maxBundleBytes: cfg.maxBundleBytes,
+    maxFiles: cfg.maxFiles,
     defaultCspMode: cfg.defaultCspMode,
     ownerKeyId: owner.id,
   };

@@ -1,3 +1,4 @@
+import { bodyLimit } from "hono/body-limit";
 import { Hono } from "hono";
 import type { DB } from "../db/index.js";
 import type { AppConfig } from "../config.js";
@@ -18,9 +19,20 @@ import { mcpHttpRouter } from "./mcpHttp.js";
  */
 export function createApp(db: DB, cfg: AppConfig): Hono {
   const app = new Hono();
+  // Bound raw JSON, including base64 overhead, before REST/MCP parsing.
+  app.use(
+    "*",
+    bodyLimit({
+      maxSize:
+        Math.ceil(((cfg.maxBundleBytes ?? 20 * 1024 * 1024) * 4) / 3) +
+        cfg.maxHtmlBytes +
+        1024 * 1024,
+      onError: (c) => c.json({ error: "payload_too_large" }, 413),
+    }),
+  );
 
   const controlHost = new URL(cfg.controlBaseUrl).host;
-  const content = contentRouter(db);
+  const content = contentRouter(db, cfg.contentBaseUrl);
   const control = new Hono();
   control.route("/", adminRouter(db, cfg));
   control.route("/mcp", mcpHttpRouter(db, cfg));
@@ -36,7 +48,9 @@ export function createApp(db: DB, cfg: AppConfig): Hono {
   app.all("*", (c) => {
     // The node-server adapter builds the request URL from the real Host header;
     // the URL host is therefore the reliable discriminator (and works in tests).
-    const host = (c.req.header("host") ?? new URL(c.req.url).host).toLowerCase();
+    const host = (
+      c.req.header("host") ?? new URL(c.req.url).host
+    ).toLowerCase();
     if (host === cfg.contentHost.toLowerCase()) return content.fetch(c.req.raw);
     if (host === controlHost.toLowerCase()) return control.fetch(c.req.raw);
     return c.text("Unknown host", 404);

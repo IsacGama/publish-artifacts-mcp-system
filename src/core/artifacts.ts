@@ -1,3 +1,9 @@
+import {
+  prepareFiles,
+  replaceFiles,
+  listFiles,
+  type FileInput,
+} from "./files.js";
 import type { DB } from "../db/index.js";
 import {
   type ArtifactRow,
@@ -8,7 +14,7 @@ import {
   toMeta,
 } from "./types.js";
 import { generateId, generateSlug } from "../security/slugs.js";
-import { assertWithinSize } from "../security/limits.js";
+import { assertWithinSize, PayloadTooLargeError } from "../security/limits.js";
 import { sanitizeStrict } from "../security/sanitize.js";
 
 export interface ArtifactServiceDeps {
@@ -16,10 +22,15 @@ export interface ArtifactServiceDeps {
   contentBaseUrl: string;
   maxHtmlBytes: number;
   defaultCspMode: CspMode;
+  maxFileBytes?: number;
+  maxBundleBytes?: number;
+  maxFiles?: number;
 }
 
 export interface PublishInput {
   html: string;
+  /** Replaces the full file set on update; omitted preserves files, [] removes all. */
+  files?: FileInput[];
   title?: string;
   description?: string;
   visibility?: Visibility;
@@ -32,7 +43,11 @@ export interface PublishInput {
 
 export type UpdateInput = Partial<PublishInput>;
 
-function prepareHtml(html: string, maxBytes: number, sanitize: boolean | undefined): string {
+function prepareHtml(
+  html: string,
+  maxBytes: number,
+  sanitize: boolean | undefined,
+): string {
   const out = sanitize ? sanitizeStrict(html) : html;
   assertWithinSize(out, maxBytes);
   return out;
@@ -45,6 +60,7 @@ export function publishArtifact(
   input: PublishInput,
 ): ArtifactMeta {
   const html = prepareHtml(input.html, deps.maxHtmlBytes, input.sanitize);
+  const files = prepareFiles(input.files ?? [], deps, Buffer.byteLength(html));
   const now = new Date().toISOString();
   const row: ArtifactRow = {
     id: generateId(),
@@ -59,14 +75,20 @@ export function publishArtifact(
     created_at: now,
     updated_at: now,
   };
-  deps.db
-    .prepare(
-      `INSERT INTO artifacts
+  deps.db.transaction(() => {
+    deps.db
+      .prepare(
+        `INSERT INTO artifacts
          (id, owner_key_id, slug, title, description, html, visibility, csp_mode, expires_at, created_at, updated_at)
        VALUES (@id, @owner_key_id, @slug, @title, @description, @html, @visibility, @csp_mode, @expires_at, @created_at, @updated_at)`,
-    )
-    .run(row);
-  return toMeta(row, deps.contentBaseUrl);
+      )
+      .run(row);
+    replaceFiles(deps.db, row.id, files);
+  })();
+  return {
+    ...toMeta(row, deps.contentBaseUrl),
+    files: listFiles(deps.db, row.id),
+  };
 }
 
 function getOwnedRow(db: DB, ownerKeyId: string, id: string): ArtifactRow {
@@ -89,6 +111,21 @@ export function updateArtifact(
     input.html !== undefined
       ? prepareHtml(input.html, deps.maxHtmlBytes, input.sanitize)
       : existing.html;
+  const files =
+    input.files === undefined
+      ? undefined
+      : prepareFiles(input.files, deps, Buffer.byteLength(html));
+  if (files === undefined) {
+    const existingBytes = listFiles(deps.db, id).reduce(
+      (sum, f) => sum + f.size,
+      0,
+    );
+    if (
+      Buffer.byteLength(html) + existingBytes >
+      (deps.maxBundleBytes ?? 20 * 1024 * 1024)
+    )
+      throw new PayloadTooLargeError(deps.maxBundleBytes ?? 20 * 1024 * 1024);
+  }
   const next: ArtifactRow = {
     ...existing,
     html,
@@ -96,23 +133,34 @@ export function updateArtifact(
     description: input.description ?? existing.description,
     visibility: input.visibility ?? existing.visibility,
     csp_mode: input.csp_mode ?? existing.csp_mode,
-    expires_at: input.expires_at !== undefined ? input.expires_at : existing.expires_at,
+    expires_at:
+      input.expires_at !== undefined ? input.expires_at : existing.expires_at,
     updated_at: new Date().toISOString(),
   };
-  deps.db
-    .prepare(
-      `UPDATE artifacts SET
+  deps.db.transaction(() => {
+    deps.db
+      .prepare(
+        `UPDATE artifacts SET
          html = @html, title = @title, description = @description,
          visibility = @visibility, csp_mode = @csp_mode, expires_at = @expires_at,
          updated_at = @updated_at
        WHERE id = @id AND owner_key_id = @owner_key_id`,
-    )
-    .run(next);
-  return toMeta(next, deps.contentBaseUrl);
+      )
+      .run(next);
+    if (files !== undefined) replaceFiles(deps.db, id, files);
+  })();
+  return {
+    ...toMeta(next, deps.contentBaseUrl),
+    files: listFiles(deps.db, id),
+  };
 }
 
 /** Owner-scoped delete. Returns true if a row was removed. */
-export function deleteArtifact(deps: ArtifactServiceDeps, ownerKeyId: string, id: string): boolean {
+export function deleteArtifact(
+  deps: ArtifactServiceDeps,
+  ownerKeyId: string,
+  id: string,
+): boolean {
   const res = deps.db
     .prepare(`DELETE FROM artifacts WHERE id = ? AND owner_key_id = ?`)
     .run(id, ownerKeyId);
@@ -126,7 +174,10 @@ export function getArtifact(
   includeHtml = false,
 ): ArtifactMeta & { html?: string } {
   const row = getOwnedRow(deps.db, ownerKeyId, id);
-  const meta = toMeta(row, deps.contentBaseUrl);
+  const meta = {
+    ...toMeta(row, deps.contentBaseUrl),
+    files: listFiles(deps.db, id),
+  };
   return includeHtml ? { ...meta, html: row.html } : meta;
 }
 
@@ -149,7 +200,9 @@ export function listArtifacts(
   const params = opts.visibility ? [ownerKeyId, opts.visibility] : [ownerKeyId];
 
   const total = (
-    deps.db.prepare(`SELECT COUNT(*) AS c FROM artifacts WHERE ${where}`).get(...params) as {
+    deps.db
+      .prepare(`SELECT COUNT(*) AS c FROM artifacts WHERE ${where}`)
+      .get(...params) as {
       c: number;
     }
   ).c;
@@ -158,5 +211,11 @@ export function listArtifacts(
       `SELECT * FROM artifacts WHERE ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     )
     .all(...params, limit, offset) as ArtifactRow[];
-  return { items: rows.map((r) => toMeta(r, deps.contentBaseUrl)), total };
+  return {
+    items: rows.map((r) => ({
+      ...toMeta(r, deps.contentBaseUrl),
+      files: listFiles(deps.db, r.id),
+    })),
+    total,
+  };
 }

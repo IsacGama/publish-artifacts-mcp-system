@@ -13,6 +13,14 @@ describe("buildCsp", () => {
     expect(csp).toContain("script-src 'unsafe-inline'");
   });
 
+  it("permits only the bundle directory for external scripts in strict mode", () => {
+    const csp = buildCsp("strict", "https://content.example.com/a/slug/");
+    const scripts = csp.split("; ").find(part => part.startsWith("script-src"))!;
+    expect(scripts).toContain("https://content.example.com/a/slug/");
+    expect(scripts).not.toContain("'self'");
+    expect(csp).toContain("connect-src 'none'");
+  });
+
   it("relaxed mode allows https network but still blocks forms", () => {
     const csp = buildCsp("relaxed");
     expect(csp).toContain("connect-src https:");

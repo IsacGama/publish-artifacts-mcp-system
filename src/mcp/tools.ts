@@ -1,3 +1,4 @@
+import { fileSchema } from "../core/files.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { ArtifactServiceDeps } from "../core/artifacts.js";
@@ -52,7 +53,7 @@ async function guard<T>(fn: () => T | Promise<T>) {
 export function buildMcpServer(ctx: ToolContext): McpServer {
   const server = new McpServer({
     name: "publish-artifacts-mcp",
-    version: "0.1.0",
+    version: "0.2.0",
   });
 
   server.registerTool(
@@ -60,16 +61,26 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
     {
       title: "Publish HTML artifact",
       description:
-        "Publish a self-contained HTML document and get back a shareable link. " +
+        "Publish an HTML document with optional local JS/CSS/font/image files and get a shareable link. " +
         "Content is served on an isolated origin under a strict Content-Security-Policy.",
       inputSchema: {
-        html: z.string().min(1).describe("The full HTML document to publish"),
+        html: z
+          .string()
+          .min(1)
+          .describe(
+            "The full HTML document to publish; use relative ./assets/... URLs for files",
+          ),
+        files: z.array(fileSchema).optional(),
         title: z.string().optional(),
         description: z.string().optional(),
-        visibility: visibility.optional().describe("public (listed) or unlisted (default)"),
+        visibility: visibility
+          .optional()
+          .describe("public (listed) or unlisted (default)"),
         csp_mode: cspMode
           .optional()
-          .describe("strict blocks network egress (default); relaxed allows https network"),
+          .describe(
+            "strict blocks network egress (default); relaxed allows https network",
+          ),
         expires_at: z
           .string()
           .datetime()
@@ -78,7 +89,9 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
         sanitize: z
           .boolean()
           .optional()
-          .describe("If true, strip scripts/handlers via DOMPurify before storing"),
+          .describe(
+            "If true, strip scripts/handlers via DOMPurify before storing",
+          ),
       },
     },
     async (args) => guard(() => publishArtifact(ctx, ctx.ownerKeyId, args)),
@@ -92,6 +105,12 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
       inputSchema: {
         id: z.string().min(1),
         html: z.string().optional(),
+        files: z
+          .array(fileSchema)
+          .optional()
+          .describe(
+            "Replaces all files atomically; omit to preserve them, [] to remove them",
+          ),
         title: z.string().optional(),
         description: z.string().optional(),
         visibility: visibility.optional(),
@@ -100,7 +119,8 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
         sanitize: z.boolean().optional(),
       },
     },
-    async ({ id, ...rest }) => guard(() => updateArtifact(ctx, ctx.ownerKeyId, id, rest)),
+    async ({ id, ...rest }) =>
+      guard(() => updateArtifact(ctx, ctx.ownerKeyId, id, rest)),
   );
 
   server.registerTool(
@@ -122,7 +142,8 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
     "get_artifact",
     {
       title: "Get an artifact",
-      description: "Fetch metadata (and optionally the HTML) for an owned artifact.",
+      description:
+        "Fetch metadata (and optionally the HTML) for an owned artifact.",
       inputSchema: {
         id: z.string().min(1),
         include_html: z.boolean().optional(),
@@ -144,7 +165,9 @@ export function buildMcpServer(ctx: ToolContext): McpServer {
       },
     },
     async ({ limit, offset, visibility: vis }) =>
-      guard(() => listArtifacts(ctx, ctx.ownerKeyId, { limit, offset, visibility: vis })),
+      guard(() =>
+        listArtifacts(ctx, ctx.ownerKeyId, { limit, offset, visibility: vis }),
+      ),
   );
 
   server.registerTool(

@@ -13,7 +13,8 @@ async function connectedClient(ctx: ToolContext) {
 }
 
 function parse(res: unknown): any {
-  const content = (res as { content: Array<{ type: string; text: string }> }).content;
+  const content = (res as { content: Array<{ type: string; text: string }> })
+    .content;
   return JSON.parse(content[0]!.text);
 }
 
@@ -21,7 +22,10 @@ describe("MCP tools (in-memory)", () => {
   it("exposes the full tool set", async () => {
     const db = memDb();
     const owner = seedKey(db);
-    const client = await connectedClient({ ...testDeps(db), ownerKeyId: owner.id });
+    const client = await connectedClient({
+      ...testDeps(db),
+      ownerKeyId: owner.id,
+    });
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual(
@@ -39,7 +43,10 @@ describe("MCP tools (in-memory)", () => {
   it("runs a full publish -> share -> update -> delete lifecycle", async () => {
     const db = memDb();
     const owner = seedKey(db);
-    const client = await connectedClient({ ...testDeps(db), ownerKeyId: owner.id });
+    const client = await connectedClient({
+      ...testDeps(db),
+      ownerKeyId: owner.id,
+    });
 
     const published = parse(
       await client.callTool({
@@ -50,7 +57,10 @@ describe("MCP tools (in-memory)", () => {
     expect(published.share_url).toMatch(/\/a\/[A-Za-z0-9_-]{22}$/);
 
     const share = parse(
-      await client.callTool({ name: "get_share_link", arguments: { id: published.id, rotate: true } }),
+      await client.callTool({
+        name: "get_share_link",
+        arguments: { id: published.id, rotate: true },
+      }),
     );
     expect(share.slug).not.toBe(published.slug);
 
@@ -62,21 +72,65 @@ describe("MCP tools (in-memory)", () => {
     );
     expect(updated.title).toBe("Renamed");
 
-    const list = parse(await client.callTool({ name: "list_artifacts", arguments: {} }));
+    const list = parse(
+      await client.callTool({ name: "list_artifacts", arguments: {} }),
+    );
     expect(list.total).toBe(1);
 
-    const del = parse(await client.callTool({ name: "delete_artifact", arguments: { id: published.id } }));
+    const del = parse(
+      await client.callTool({
+        name: "delete_artifact",
+        arguments: { id: published.id },
+      }),
+    );
     expect(del.ok).toBe(true);
   });
 
   it("returns an error result for a missing artifact", async () => {
     const db = memDb();
     const owner = seedKey(db);
-    const client = await connectedClient({ ...testDeps(db), ownerKeyId: owner.id });
+    const client = await connectedClient({
+      ...testDeps(db),
+      ownerKeyId: owner.id,
+    });
     const res = (await client.callTool({
       name: "get_artifact",
       arguments: { id: "nonexistent" },
     })) as { isError?: boolean };
     expect(res.isError).toBe(true);
+  });
+  it("publishes local files through MCP and preserves them on metadata updates", async () => {
+    const db = memDb();
+    const owner = seedKey(db);
+    const client = await connectedClient({
+      ...testDeps(db),
+      ownerKeyId: owner.id,
+    });
+    const a = parse(
+      await client.callTool({
+        name: "publish_artifact",
+        arguments: {
+          html: '<script src="./app.js"></script>',
+          files: [{ path: "app.js", content: "window.ok=true" }],
+        },
+      }),
+    );
+    expect(a.files[0].path).toBe("app.js");
+    const updated = parse(
+      await client.callTool({
+        name: "update_artifact",
+        arguments: { id: a.id, title: "updated" },
+      }),
+    );
+    expect(updated.files).toEqual(a.files);
+    const cleared = parse(
+      await client.callTool({
+        name: "update_artifact",
+        arguments: { id: a.id, files: [] },
+      }),
+    );
+    expect(cleared.files).toEqual([]);
+    await client.close();
+    db.close();
   });
 });
