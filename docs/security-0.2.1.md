@@ -55,3 +55,27 @@ The earlier image `publish-artifacts-mcp:assets-e4d3798` is retained for rollbac
 
 The original local DS playground URL remains unchanged:
 https://mcp-content.isacgama.shop/a/mv2TA-tzvNSs0WsfzvCooW/
+
+## Verified final OCI rollout
+
+- Runtime code: commit `9c493a6`; test-runner/dependency removal: `7a0c76d`.
+- Active image: `docker.io/library/publish-artifacts-mcp:security-7a0c76d`.
+- Image index digest: `sha256:dfacefe1088f9ea6d09f6f7fb2fc6fec8d8ef2054691255f13577c1b7d8b3df1`.
+- ARM64 Docker build and production audit inside the built image passed (zero findings).
+- Kubernetes rollout completed; pod Ready 1/1, no restarts; public health returned 200.
+- Actual running package version: **0.2.1**. All 61 pre-existing HTML hashes and all
+  eight auxiliary-file byte hashes matched the pre-update manifest.
+- Live MCP client against OCI verified version negotiation, sanitized HTML,
+  a 4,194,337-byte binary-encoded module, served-file SHA-256, metadata update,
+  link rotation/revocation and strict CSP. Temporary test artifacts were deleted.
+- Existing connected MCP client still fetched the DS artifact with its eight files.
+- Public DS playground passed desktop/mobile interactions (button, text field,
+  checkbox, color, loading and reset), local fonts, no external asset requests,
+  no horizontal overflow and no page exceptions. Its URL did not change.
+- Confirmed Vitest, Vite and Picomatch are absent from the running container.
+- Rollback image `assets-e4d3798` retained; SQLite backup remains on the PVC.
+
+Local evidence: `Documents/Beacons-security-20261117/` contains complete audit JSON,
+Node TAP results (46 passed, 0 failed/skipped), and real-HTTP MCP smoke results.
+The runtime dependency advisories and the development-only advisory are all resolved
+in this final tree; there is no remaining known npm audit finding at this snapshot.
